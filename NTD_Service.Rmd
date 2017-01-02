@@ -1,0 +1,352 @@
+---
+title: "National Transit Database - 2015 Service Analysis"
+author: "Ruzbeh Shokranian"
+date: "December 30, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library("ggplot2")
+library("knitr")
+library("dplyr")
+
+##Load data in CSV format
+ntd_service_data <- read.csv("Service.csv", sep=",", header=TRUE)
+
+```
+
+## National Transit Database Data Exploration
+
+This document describes the analysis that was done on the National Transit Database (NTD) 2015 service analysis. The NTD program collects data from several transit agencies in the United States and is the primary source for transit data.The specific dataset that will be analysed in this project correspond to 2015 service data organized by agency, mode and type of service. The original dataset can be found on this link: https://www.transit.dot.gov/ntd/data-product/2015-service The excel file was downloaded and sheet "Annual Service Data by Mode" was saved in csv format and used in this project. The original excel dataset is attached with this project and it includes a sheet labeled "Data Dictionary" which describes each variable in the data.
+
+The dataset includes information on several variables for many transit agencies. Some of the variables includes the number of annual trips, transit performance measures, revenue statistics and more. Starting the data exploration, a few plots will be made.
+
+## Unlinked Trips by Mode
+
+To start, annual unlinked trips by mode will be plotted. Unlinked trips are defined as the number of passengers that board or alight a transit vehicle, even if the boarding/alighting correspond to a transfer.
+
+```{r mode_plot, echo=FALSE}
+## Setting Mode Name
+ntd_service_data$Mode_Name[ntd_service_data$Mode == "MB"] <- "Bus"
+ntd_service_data$Mode_Name[ntd_service_data$Mode == "RB"] <- "BRT"
+ntd_service_data$Mode_Name[ntd_service_data$Mode == "CC"] <- "Cable Car"
+ntd_service_data$Mode_Name[ntd_service_data$Mode == "CB"] <- "Commuter Bus"
+ntd_service_data$Mode_Name[ntd_service_data$Mode == "CR"] <- "Commuter Rail"
+ntd_service_data$Mode_Name[ntd_service_data$Mode == "DR"] <- "Demand Response"
+ntd_service_data$Mode_Name[ntd_service_data$Mode == "DT"] <- "Demand Response Taxi"
+ntd_service_data$Mode_Name[ntd_service_data$Mode == "FB"] <- "Ferryboat"
+ntd_service_data$Mode_Name[ntd_service_data$Mode == "HR"] <- "Heavy Rail"
+ntd_service_data$Mode_Name[ntd_service_data$Mode == "YR"] <- "Hybrid Rail"
+ntd_service_data$Mode_Name[ntd_service_data$Mode == "IP"] <- "Inclined Plane"
+ntd_service_data$Mode_Name[ntd_service_data$Mode == "LR"] <- "Light Rail"
+ntd_service_data$Mode_Name[ntd_service_data$Mode == "MG"] <- "Monorail"
+ntd_service_data$Mode_Name[ntd_service_data$Mode == "SR"] <- "Streetcar"
+ntd_service_data$Mode_Name[ntd_service_data$Mode == "TB"] <- "Trolleybus"
+ntd_service_data$Mode_Name[ntd_service_data$Mode == "VP"] <- "Vanpool"
+ntd_service_data$Mode_Name[ntd_service_data$Mode == "JT"] <- "Jitney"
+ntd_service_data$Mode_Name[ntd_service_data$Mode == "TR"] <- "Aerial Tramway"
+ntd_service_data$Mode_Name[ntd_service_data$Mode == "PB"] <- "Publico"
+ntd_service_data$Mode_Name[ntd_service_data$Mode == "AR"] <- "Alaska Railroad"
+ntd_service_data$Mode_Name[ntd_service_data$Mode == "OR"] <- "OR"
+
+## Making unlinked trips numeric
+ntd_service_data$Unlinked.Passenger.Trips <- as.numeric(gsub("\\,","",as.character(ntd_service_data$Unlinked.Passenger.Trips)))
+
+## Top unlinked trips by mode
+p2 <- ggplot(ntd_service_data, aes(Mode))
+p2 + geom_bar(aes(weight = Unlinked.Passenger.Trips))
+```
+
+Note that Bus (MB) and Heavy Rail (HR) correspond to the modes with the highest ridership. 
+
+## State Analysis
+
+The graph below shows annual unlinked trips grouped by state. The state with the highest transit ridership corresponds to New York.
+
+```{r state_plot, echo=FALSE}
+ntd_unlinked_trips_by_state <- ntd_service_data %>% 
+group_by(State) %>%
+summarise(trips = sum(Unlinked.Passenger.Trips)) %>%
+ungroup() %>%
+arrange(desc(trips))
+
+qplot(factor(State), data=ntd_unlinked_trips_by_state[1:10,], geom="bar", fill=factor(State), weight = trips)
+
+```
+
+## City Analysis
+
+The data includes the city in which each agency is located. The graphs below presents the number of unlinked trips per city and total passenger miles per city (defined as the number of miles that passengers travel), respectively. The graphs are shown for the top 10 cities.
+
+```{r city_plot, echo=FALSE}
+
+## Making passenger miles numeric
+ntd_service_data$Passenger.Miles[is.na(ntd_service_data$Passenger.Miles)] <- 0
+ntd_service_data$Passenger.Miles <- 
+  as.numeric(gsub("\\,","",as.character(ntd_service_data$Passenger.Miles)))
+## Making population numeric
+ntd_service_data$Primary.UZA.Population <- 
+  as.numeric(gsub("\\,","",as.character(ntd_service_data$Primary.UZA.Population)))
+
+ntd_data_by_city <- ntd_service_data %>% 
+  group_by(City) %>%
+  summarise(trips = sum(Unlinked.Passenger.Trips), passenger_miles = sum(Passenger.Miles), 
+            city_population = max(Primary.UZA.Population))  %>%
+  ungroup() %>%
+  arrange(desc(trips))
+
+qplot(factor(City), data=ntd_data_by_city[1:10,], geom="bar", fill=factor(City), weight = trips)
+qplot(factor(City), data=ntd_data_by_city[1:10,], geom="bar", fill=factor(City), 
+      weight = passenger_miles)
+
+```
+
+Both graphs are very similar, indicating that there is a strong relationship between total unlinked trips and passenger miles. The scatter plot below shows that this relationship does in fact exist.
+
+```{r city_scatter_plot, echo=FALSE}
+## Scatter Plot: Total Trips X Total Passenger Miles
+qplot(trips, passenger_miles, data=ntd_data_by_city, 
+      main="Total Unlinked Trips X Total Passenger Miles", xlab="Total Unlinked Trips", 
+      ylab="Total Passenger Miles") + 
+  theme(axis.text.x=element_blank()) + 
+  theme(axis.text.y=element_blank())
+```
+
+In the graph above, the point in the top right corner corresponds to New York City. Below, the same graph is plotted without NYC so it is possible to take a close look at the other cities. The graph indicates that although there is a relationship between both variables, there are a few cities where that relationship is weaker.
+
+```{r city_scatter_plot_2, echo=FALSE}
+## Scatter Plot: Total Trips X Total Passenger Miles
+qplot(trips, passenger_miles, data=ntd_data_by_city[2:nrow(ntd_data_by_city),], 
+      main="Total Unlinked Trips X Total Passenger Miles", xlab="Total Unlinked Trips", 
+      ylab="Total Passenger Miles") + 
+  theme(axis.text.x=element_blank()) + 
+  theme(axis.text.y=element_blank())
+```
+
+It would be interesting to see how the population of the metropolitan area is related to transit ridership. The bar plot below presents the top 10 cities by population.
+
+```{r city_population_plot, echo=FALSE}
+
+qplot(factor(City), data=ntd_data_by_city[1:10,], geom="bar", fill=factor(City), 
+      weight = city_population)
+
+```
+
+And the scatter plot below shows how they are related:
+
+```{r city_population_scatter_plot, echo=FALSE}
+## Scatter Plot: Total Trips X City Population
+qplot(city_population, trips, data=ntd_data_by_city, 
+      main="Total Unlinked Trips X City Population", xlab="City Population", 
+      ylab="Total Unlinked Trips") + 
+  theme(axis.text.x=element_blank()) + 
+  theme(axis.text.y=element_blank())
+```
+
+## Vehicle Hours X Vehicle Miles
+
+Vehicle Hours correspond to the number of hours that a vehicle travels while in service. Similarly, Vehicle Miles correspond to the number of miles that the vehicle travels while in service, The scatter plot below is an attempt to see if there is a relationship between both variables.
+
+```{r vehicle_hours_miles, echo=FALSE}
+## Scatter Plot: Vehicle Hours X Vehicle Miles
+p1 <- ggplot(ntd_service_data, aes(x = Vehicle.Miles, y = Vehicle.Hours))
+p1 + geom_point(aes(color = Mode)) + 
+  theme(axis.text.x=element_blank()) + 
+  theme(axis.text.y=element_blank())
+```
+
+Each color in the graph corresponds to a different mode, and it appears that the relationship is different for each mode. Some of them seem to have a stronger relationship them others.
+
+## Commuter Rail
+
+In this section Commuter Rail will be specifically analysed. The bar chart below presents the top 10 commuter rail agencies in the US. Note that the 3 biggest serve the New York City metropolitan area.
+
+```{r commuter_rail, echo=FALSE}
+## Making speed numeric
+ntd_service_data$Average.Speed..mi.hr. <- as.numeric(as.character(ntd_service_data$Average.Speed..mi.hr.))
+
+commuter_rail_subset <- filter(ntd_service_data, Mode == "CR")
+
+## TOp 10 commuter rail agencies in the US
+commuter_rail_by_agency <- commuter_rail_subset %>% 
+  group_by(Name) %>%
+  summarise(trips = sum(Unlinked.Passenger.Trips)) %>%
+  ungroup() %>%
+  arrange(desc(trips))
+qplot(factor(Name), data=commuter_rail_by_agency[1:10,], geom="bar", fill=factor(Name), weight = trips)
+```
+
+Another interesting visualization would be to compare each operator's ridership in respect to the mean. The graph below presents that:
+
+```{r commuter_rail_mean_1, echo=FALSE}
+
+## TOp 10 commuter rail agencies in the US in respect to the mean
+commuter_rail_by_agency <- commuter_rail_subset %>% 
+  group_by(Name) %>%
+  summarise(trips = sum(Unlinked.Passenger.Trips)) %>%
+  ungroup() %>%
+  arrange(desc(trips))
+qplot(factor(Name), data=commuter_rail_by_agency[1:10,], geom="bar", fill=factor(Name), weight = trips/mean(commuter_rail_subset$Unlinked.Passenger.Trips))
+```
+
+The graph above indicates that NYC Commuter Rail operators have significantly higher ridership when compared to the mean ridership in the US. Below we present the mean and the median for Commuter Rail Unlinked Trips:
+
+```{r commuter_rail_mean_2, echo=TRUE}
+
+mean(commuter_rail_subset$Unlinked.Passenger.Trips)
+median(commuter_rail_subset$Unlinked.Passenger.Trips)
+
+```
+
+The mean and the mediam above are quite different, indicating that a few operators have very high ridership while most of them have low numbers. This can be confirmed in the histogram below:
+
+```{r commuter_rail_histogram, echo=FALSE}
+
+qplot(commuter_rail_subset$Unlinked.Passenger.Trips, geom="histogram", bins = 10)
+
+```
+
+
+The bar chart below presents the top 10 COmmuter Rail Revenue Miles. That is the number of miles travelled by trains while in revenue service.
+
+```{r commuter_rail_revenue, echo=FALSE}
+## TOp 10 COmmuter Revenue per mile 
+revenue_commuter_rail_by_agency <- commuter_rail_subset %>% 
+  group_by(Name) %>%
+  summarise(revenue = sum(as.numeric(Train..Revenue.Miles))) %>%
+  ungroup() %>%
+  arrange(desc(revenue))
+qplot(factor(Name), data=revenue_commuter_rail_by_agency[1:10,], geom="bar", fill=factor(Name), weight = revenue)
+
+```
+
+Comparing the graphs, New York City agencies are in top in all of them. However, differences on the previous graph are lower, indicating that several commuter rail operators travel similar number of miles but carrying sifnificantly different number of passengers.
+
+## Bus
+
+In this section the BUs mode will be analysed. The graph below presents the top 10 bus operators in the US. 
+
+```{r bus_operators, echo=FALSE}
+## Making number of vehicles numeric
+ntd_service_data$Mode.VOMS[is.na(ntd_service_data$Mode.VOMS)] <- 0
+
+ntd_service_data$Mode.VOMS <- 
+  as.numeric(gsub("\\,","",as.character(ntd_service_data$Mode.VOMS)))
+
+## Making average passenger trip length numeric
+ntd_service_data$Average.Passenger.Trip.Length..mi. <- 
+  as.numeric(as.character(ntd_service_data$Average.Passenger.Trip.Length..mi.))
+ntd_service_data$Average.Passenger.Trip.Length..mi.[is.na(ntd_service_data$Average.Passenger.Trip.Length..mi.)] <- 0 
+
+bus_subset <- filter(ntd_service_data, Mode == "MB")
+
+## TOp 10 bus agencies in the US
+bus_by_agency <- bus_subset %>% 
+  group_by(Name) %>%
+  summarise(trips = sum(Unlinked.Passenger.Trips), voms = sum(Mode.VOMS), 
+            speed = mean(Average.Speed..mi.hr.), 
+            trip_length = mean(Average.Passenger.Trip.Length..mi.)) %>%
+  ungroup() %>%
+  arrange(desc(trips))
+qplot(factor(Name), data=bus_by_agency[1:10,], geom="bar", fill=factor(Name), weight = trips)
+```
+
+The plots below explore the number of vehicles variable. The first graph presents the top 10 agencies grouped by number of vehicles while the second is a histogram of agencies grouped by number of vehicles.
+
+```{r bus_histogram, echo=FALSE}
+
+## Plotting top 10 agencies by the number of vehicles
+qplot(factor(Name), data=bus_by_agency[1:10,], geom="bar", fill=factor(Name), weight = voms)
+
+## Histogram presenting bus operators grouped by number of vehicles
+qplot(bus_subset$Mode.VOMS, geom="histogram", bins = 40)
+
+```
+
+The trips and number of vehicles bar charts indicate that there is a relationship between both variables. Which can be confirmed in the scatter plot below:
+
+```{r bus_scatter_plot, echo=FALSE}
+## Scatter Plot: Total Trips X Total Passenger Miles
+qplot(trips, voms, data=bus_by_agency, 
+      main="Total Unlinked Trips X Total Vehicles", xlab="Total Unlinked Trips", 
+      ylab="Total Vehicles") + 
+  theme(axis.text.x=element_blank()) + 
+  theme(axis.text.y=element_blank())
+```
+
+The bar plot below shows how average bus speed varies across agencies:
+
+```{r bus_speed, echo=FALSE}
+
+## Plotting top 10 agencies by the speed
+qplot(factor(Name), data=bus_by_agency[1:10,], geom="bar", fill=factor(Name), weight = speed)
+
+```
+
+And is there a relationship between the average bus speed and the average passenger trip length?
+
+```{r bus_scatter_plot_2, echo=FALSE}
+## Scatter Plot: Average Bus Speed X Average Trip Length
+qplot(speed, trip_length, data=bus_by_agency, 
+      main="Average Bus Speed X Average Trip Length", xlab="Average Speed (miles/hour)", 
+      ylab="Trip Length (Miles)") + 
+  theme(axis.text.x=element_blank()) + 
+  theme(axis.text.y=element_blank())
+```
+
+## Schedule Vs. Reality
+
+Another interesting variables to look at are the Scheduled Vehicle Revenue Miles and Vehicle Revenue Miles. The first variable indicates the number of miles to be run by transit vehicles while in revenue service according to the schedule while the second variable presents the actual number of miles ran.
+
+```{r schedule_reality_1, echo=FALSE}
+## Scatter Plot: Scheduled.Vehicle.Revenue.Miles X Vehicle.Revenue.Miles
+qplot(Scheduled.Vehicle.Revenue.Miles, Vehicle.Revenue.Miles, data=ntd_service_data)
+```
+
+The scatter plot above shows that both variables are related, but as expected, the number of miles acutally ran is higher than scheduled for several transit agencies. 
+
+## Final Plots and Summary
+
+In this section, three graphs shown previously have been polished. 
+
+The first plot shows the top 10 modes by unlinked trips. The plot shows that Bus is the most used transit mode in the US, followed by Heavy Rail.
+
+```{r final_mode_plot, echo=FALSE}
+## unlinked trips by mode
+qplot(factor(Mode_Name),data=ntd_service_data, geom="bar", fill=factor(Mode_Name), weight = Unlinked.Passenger.Trips, main="Annual Unlinked Trips by Mode", xlab="Mode", ylab="Unlinked Trips") + 
+  theme(axis.text.x=element_blank()) + 
+  scale_fill_discrete(guide = guide_legend(title = "Mode")) +
+  scale_y_continuous(name="Unlinked Trips",labels = function(n) {format(n, big.mark=",", scientific = FALSE)})
+```
+
+The plot below shows the top 10 cities by unlinked trips. Note that New York City is has the most transit trips in the US with a significant difference when compared to the other cities.
+
+```{r final_city_plot, echo=FALSE}
+
+## Top 10 Cities by unlinked trips
+qplot(factor(City), data=ntd_data_by_city[1:10,], geom="bar", fill=factor(City), weight = trips, main="Top 10 Cities by Unlinked Trips", xlab="City", ylab="Unlinked Trips") + 
+  theme(axis.text.x=element_blank()) + 
+  scale_fill_discrete(guide = guide_legend(title = "City")) +
+  scale_y_continuous(name="Unlinked Trips",labels = function(n) {format(n, big.mark=",", scientific = FALSE)})
+
+```
+
+The scatter plot below compares Schedules and Actual Revenue Miles. Scheduled Revenue Miles correspond to the amount of miles transit vehicles run as planned on the timetables, while Actual Revenue Miles correspond to the miles that the transit vehicles actually ran. The graph shows that they are strongly related and for most transit operators both variables have similar values.
+
+```{r final_schedule_reality, echo=FALSE}
+## Scatter Plot: Scheduled.Vehicle.Revenue.Miles X Vehicle.Revenue.Miles
+qplot(Scheduled.Vehicle.Revenue.Miles, Vehicle.Revenue.Miles, data=ntd_service_data, 
+      main="Scheduled Vs. Actual Vehicle Miles", xlab="Scheduled Vehicle Revenue Miles", ylab="Actual Vehicle Revenue Miles") + 
+  theme(axis.text.x=element_blank()) + 
+  theme(axis.text.y=element_blank())
+```
+
+## Reflection
+
+The NTD data provides several metrics that can be used to compare different transit operators across the US. This metrics can be use to evaluate the performance and quality of the service provided. The number of variables provided by the dataset is large and only a few of these variables were selected for analysis.
+
+An interesting observation shown in this work is that the New York City Metropolitan area is the primary transit market in the US. Several of the graphs in this project have shown this. The city is first place in transit ridership with a signficant difference when compared to other cities.
+
+The data used in this project correspond to a snapshot of 2015. The NTD also provides data for previous years, and this could be used to evaluate the performance of these transit agencies across time.
