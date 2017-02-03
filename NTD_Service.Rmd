@@ -1,7 +1,7 @@
 ---
 title: "National Transit Database - 2015 Service Analysis"
 author: "Ruzbeh Shokranian"
-date: "January 7, 2017"
+date: "February 2nd, 2017"
 output: html_document
 ---
 
@@ -123,10 +123,26 @@ ntd_data_by_city <- ntd_service_data %>%
               max(Primary.UZA.Population))  %>%
   ungroup() %>%
   arrange(desc(trips))
+
 ```
 ```{r city_statistics, echo = TRUE}
 summary(ntd_data_by_city$trips)
 summary(ntd_data_by_city$passenger_miles)
+
+```
+
+The range of both variables is very high, with the mean and the median having 
+very different values. This is because there are several outliers in the data.
+To better understand these variables the histograms below explore the trips and
+passenger miles variables, respectively. A log transformation was used to 
+improve visualization.
+
+```{r city_histograms}
+qplot(log(ntd_data_by_city$trips), 
+      geom="histogram", bins = 10)
+
+qplot(log(ntd_data_by_city$passenger_miles), 
+      geom="histogram", bins = 10)
 
 ```
 
@@ -147,7 +163,8 @@ qplot(factor(City), data=ntd_data_by_city[1:10,], geom="bar",
 
 ```
 
-Both graphs above are very similar, indicating that there is a strong relationship 
+Both graphs above are very similar, indicating that there is a strong 
+relationship 
 between total unlinked trips and passenger miles. The scatter plot below shows 
 that this relationship does in fact exist.
 
@@ -156,9 +173,7 @@ that this relationship does in fact exist.
 qplot(trips, passenger_miles, data=ntd_data_by_city, 
       main="Total Unlinked Trips X Total Passenger Miles", 
       xlab="Total Unlinked Trips", 
-      ylab="Total Passenger Miles") + 
-  theme(axis.text.x=element_blank()) + 
-  theme(axis.text.y=element_blank())
+      ylab="Total Passenger Miles")
 ```
 
 In the graph above, the point in the top right corner corresponds to New York 
@@ -172,9 +187,7 @@ relationship is weaker.
 qplot(trips, passenger_miles, data=ntd_data_by_city[2:nrow(ntd_data_by_city),], 
       main="Total Unlinked Trips X Total Passenger Miles", 
       xlab="Total Unlinked Trips", 
-      ylab="Total Passenger Miles") + 
-  theme(axis.text.x=element_blank()) + 
-  theme(axis.text.y=element_blank())
+      ylab="Total Passenger Miles")
 ```
 
 It would be interesting to see how the population of the metropolitan area is 
@@ -197,15 +210,20 @@ summary(ntd_data_by_city$city_population)
 
 ```
 
+And the city population histogram below:
+
+```{r city_pop_histograms}
+qplot(ntd_data_by_city$city_population, 
+      geom="histogram", bins = 10)
+```
+
 And the scatter plot below shows how they are related:
 
 ```{r city_population_scatter_plot}
 ## Scatter Plot: Total Trips X City Population
 qplot(city_population, trips, data=ntd_data_by_city, 
       main="Total Unlinked Trips X City Population", xlab="City Population", 
-      ylab="Total Unlinked Trips") + 
-  theme(axis.text.x=element_blank()) + 
-  theme(axis.text.y=element_blank())
+      ylab="Total Unlinked Trips")
 ```
 
 ## Vehicle Hours X Vehicle Miles
@@ -224,16 +242,30 @@ ntd_service_data$Vehicle.Miles <-
 ntd_service_data$Vehicle.Hours <- 
   as.numeric(gsub("\\,","",as.character(ntd_service_data$Vehicle.Hours)))
 
+ntd_service_data$Mode.VOMS <- 
+  as.numeric(gsub("\\,","",as.character(ntd_service_data$Mode.VOMS)))
+
 ## Scatter Plot: Vehicle Hours X Vehicle Miles
-p1 <- ggplot(ntd_service_data, aes(x = log(Vehicle.Miles), y = log(Vehicle.Hours)))
-p1 + geom_point(aes(color = Mode)) + 
-  theme(axis.text.x=element_blank()) + 
-  theme(axis.text.y=element_blank())
+p1 <- ggplot(ntd_service_data, aes(x = log(Vehicle.Miles), 
+                                   y = log(Vehicle.Hours)))
+p1 + geom_point(aes(color = Mode))
 ```
 
 Each color in the graph corresponds to a different mode, and it appears that 
 the relationship is different for each mode. Some of them seem to have a 
 stronger relationship them others.
+
+Continuing the exploration of vehicle related variables, the multivariate plot
+below explores the relationshipt between three variables: Vehicle Hours, 
+Vehicle Miles, and the Number of Vehicles, represented by diferent colors. As
+expected all of them are related.
+
+```{r vehicle_hours_miles_2}
+## Scatter Plot: Vehicle Hours X Vehicle Miles X Number of Vehicles
+p1 <- ggplot(ntd_service_data, aes(x = log(Vehicle.Miles), y = log(Vehicle.Hours)))
+p1 + geom_point(aes(color = log(Mode.VOMS)))
+```
+
 
 To better present the relationship between Vehicle Hours & Miles for each mode,
 a new variable will be created: the ratio of Vehicle Miles and Vehicle Hours.
@@ -321,7 +353,8 @@ be confirmed in the histogram below:
 
 ```{r commuter_rail_histogram}
 
-qplot(commuter_rail_subset$Unlinked.Passenger.Trips, geom="histogram", bins = 10)
+qplot(commuter_rail_subset$Unlinked.Passenger.Trips, 
+      geom="histogram", bins = 10)
 
 ```
 
@@ -414,9 +447,7 @@ plot below:
 ## Scatter Plot: Total Trips X Total Passenger Miles
 qplot(trips, voms, data=bus_by_agency, 
       main="Total Unlinked Trips X Total Vehicles", xlab="Total Unlinked Trips", 
-      ylab="Total Vehicles") + 
-  theme(axis.text.x=element_blank()) + 
-  theme(axis.text.y=element_blank())
+      ylab="Total Vehicles")
 ```
 
 And the correlation is confirmed with Pearson's test:
@@ -450,10 +481,13 @@ passenger trip length?
 qplot(speed, trip_length, data=bus_by_agency, 
       main="Average Bus Speed X Average Trip Length", 
       xlab="Average Speed (miles/hour)", 
-      ylab="Trip Length (Miles)") + 
-  theme(axis.text.x=element_blank()) + 
-  theme(axis.text.y=element_blank())
+      ylab="Trip Length (Miles)")
 ```
+
+
+
+
+
 
 ## Schedule Vs. Reality
 
@@ -471,9 +505,7 @@ ntd_service_data$Vehicle.Revenue.Miles <- as.numeric(gsub("\\,","",
   as.character(ntd_service_data$Vehicle.Revenue.Miles)))
 
 qplot(Scheduled.Vehicle.Revenue.Miles, Vehicle.Revenue.Miles, 
-      data=ntd_service_data) + 
-      theme(axis.text.x=element_blank()) + 
-      theme(axis.text.y=element_blank())
+      data=ntd_service_data)
 ```
 
 The scatter plot above shows that both variables are related, but as expected, 
@@ -531,15 +563,13 @@ and for most transit operators both variables have similar values.
 
 ```{r final_schedule_reality}
 ## Scatter Plot: Scheduled.Vehicle.Revenue.Miles X Vehicle.Revenue.Miles
-qplot(log(Scheduled.Vehicle.Revenue.Miles), log(Vehicle.Revenue.Miles), 
+qplot(Scheduled.Vehicle.Revenue.Miles, Vehicle.Revenue.Miles, 
       data=ntd_service_data, 
       main="Scheduled Vs. Actual Vehicle Miles", 
       xlab="Logarithm of Scheduled Vehicle Revenue Miles", 
       ylab="Logarithm of Actual Vehicle Revenue Miles") + 
-  #theme(axis.text.x=element_blank()) + 
-  #theme(axis.text.y=element_blank()) +
-  scale_x_continuous(breaks = seq(0, 100, 5)) +
-  scale_y_continuous(breaks = seq(0, 100, 5))
+  scale_x_log10() +
+  scale_y_log10()
 ```
 
 ## Reflection
