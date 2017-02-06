@@ -1,7 +1,7 @@
 ---
 title: "National Transit Database - 2015 Service Analysis"
 author: "Ruzbeh Shokranian"
-date: "February 2nd, 2017"
+date: "February 6, 2017"
 output: html_document
 ---
 
@@ -67,17 +67,46 @@ ntd_service_data$Mode_Name[ntd_service_data$Mode == "PB"] <- "Publico"
 ntd_service_data$Mode_Name[ntd_service_data$Mode == "AR"] <- "Alaska Railroad"
 ntd_service_data$Mode_Name[ntd_service_data$Mode == "OR"] <- "OR"
 
+#Setting Mode Groups
+ntd_service_data$Mode_Group[ntd_service_data$Mode == "MB"] <- "Bus Transit"
+ntd_service_data$Mode_Group[ntd_service_data$Mode == "RB"] <- "Bus Transit"
+ntd_service_data$Mode_Group[ntd_service_data$Mode == "CC"] <- "Bus Transit"
+ntd_service_data$Mode_Group[ntd_service_data$Mode == "CB"] <- "Bus Transit"
+ntd_service_data$Mode_Group[ntd_service_data$Mode == "CR"] <- "Commuter Rail"
+ntd_service_data$Mode_Group[ntd_service_data$Mode == "DR"] <- "Demand Response"
+ntd_service_data$Mode_Group[ntd_service_data$Mode == "DT"] <- "Demand Response"
+ntd_service_data$Mode_Group[ntd_service_data$Mode == "FB"] <- "Ferryboat"
+ntd_service_data$Mode_Group[ntd_service_data$Mode == "HR"] <- "Rail Transit"
+ntd_service_data$Mode_Group[ntd_service_data$Mode == "YR"] <- "Rail Transit"
+ntd_service_data$Mode_Group[ntd_service_data$Mode == "IP"] <- "Other"
+ntd_service_data$Mode_Group[ntd_service_data$Mode == "LR"] <- "Rail Transit"
+ntd_service_data$Mode_Group[ntd_service_data$Mode == "MG"] <- "Rail Transit"
+ntd_service_data$Mode_Group[ntd_service_data$Mode == "SR"] <- "Rail Transit"
+ntd_service_data$Mode_Group[ntd_service_data$Mode == "TB"] <- "Bus Transit"
+ntd_service_data$Mode_Group[ntd_service_data$Mode == "VP"] <- "Demand Response"
+ntd_service_data$Mode_Group[ntd_service_data$Mode == "JT"] <- "Other"
+ntd_service_data$Mode_Group[ntd_service_data$Mode == "TR"] <- "Rail Transit"
+ntd_service_data$Mode_Group[ntd_service_data$Mode == "PB"] <- "Bus Transit"
+ntd_service_data$Mode_Group[ntd_service_data$Mode == "AR"] <- "Rail Transit"
+ntd_service_data$Mode_Group[ntd_service_data$Mode == "OR"] <- "Other"
+
 ## Making unlinked trips numeric
 ntd_service_data$Unlinked.Passenger.Trips <- 
   as.numeric(gsub("\\,","",
                   as.character(ntd_service_data$Unlinked.Passenger.Trips)))
 
 ## Top unlinked trips by mode
-p2 <- ggplot(ntd_service_data, aes(Mode))
-p2 + geom_bar(aes(weight = Unlinked.Passenger.Trips))
+ggplot(data=ntd_service_data, 
+       aes(x=Mode_Name, y=Unlinked.Passenger.Trips
+           ,fill=factor(Mode_Name))) +
+  geom_bar(position="dodge", stat="identity") +
+  coord_flip() +
+  theme(legend.position = "none") +
+  labs(x = "Mode", y = "Unlinked Trips", 
+       title = "Annual Unlinked Trips by Mode")
 ```
 
-Note that Bus (MB) and Heavy Rail (HR) correspond to the modes with the highest 
+Note that Bus and Heavy Rail correspond to the modes with the highest 
 ridership. 
 
 ## State Analysis
@@ -92,11 +121,19 @@ summarise(trips = sum(Unlinked.Passenger.Trips)) %>%
 ungroup() %>%
 arrange(desc(trips))
 
-qplot(factor(State), data=ntd_unlinked_trips_by_state[1:10,], geom="bar", 
-      fill=factor(State), weight = trips) +
+qplot(factor(State), data=ntd_unlinked_trips_by_state[1:10,], geom="bar",
+      weight = trips) +
   theme(legend.position = "none")
 
 ```
+
+Below some summary statistics for unlinked trips by States are presented: 
+
+```{r state_statistics, echo = TRUE}
+summary(ntd_unlinked_trips_by_state$trips)
+
+```
+
 
 ## City Analysis
 
@@ -155,10 +192,10 @@ The graphs are shown for the top 10 cities.
 ```{r city_plot}
 
 qplot(factor(City), data=ntd_data_by_city[1:10,], geom="bar", 
-      fill=factor(City), weight = trips) +
+       weight = trips) +
   theme(legend.position = "none")
 qplot(factor(City), data=ntd_data_by_city[1:10,], geom="bar", 
-      fill=factor(City), weight = passenger_miles) +
+       weight = passenger_miles) +
   theme(legend.position = "none")
 
 ```
@@ -196,7 +233,7 @@ by population.
 
 ```{r city_population_plot}
 
-qplot(factor(City), data=ntd_data_by_city[1:10,], geom="bar", fill=factor(City), 
+qplot(factor(City), data=ntd_data_by_city[1:10,], geom="bar", 
       weight = city_population) +
   theme(legend.position = "none")
 
@@ -210,10 +247,11 @@ summary(ntd_data_by_city$city_population)
 
 ```
 
-And the city population histogram below:
+And the city population histogram below. A log transformation is applied to
+better represent the population distribution.
 
 ```{r city_pop_histograms}
-qplot(ntd_data_by_city$city_population, 
+qplot(log(ntd_data_by_city$city_population), 
       geom="histogram", bins = 10)
 ```
 
@@ -230,12 +268,12 @@ qplot(city_population, trips, data=ntd_data_by_city,
 
 Vehicle Hours correspond to the number of hours that a vehicle travels while in 
 service. Similarly, Vehicle Miles correspond to the number of miles that the 
-vehicle travels while in service, The scatter plot below is an attempt to see if
-there is a relationship between both variables. The plot applies a log 
-transformation to each of these variables in an attempt to better represent the
-results and to deal with outliers.
+vehicle travels while in service.
 
-```{r vehicle_hours_miles}
+The statistics below show how this variable
+varies across the dataset:
+
+```{r vehicle}
 ntd_service_data$Vehicle.Miles <- 
   as.numeric(gsub("\\,","",as.character(ntd_service_data$Vehicle.Miles)))
 
@@ -244,15 +282,29 @@ ntd_service_data$Vehicle.Hours <-
 
 ntd_service_data$Mode.VOMS <- 
   as.numeric(gsub("\\,","",as.character(ntd_service_data$Mode.VOMS)))
+```
+```{r vehicle_statistics, echo = TRUE}
+summary(ntd_service_data$Vehicle.Miles)
+summary(ntd_service_data$Vehicle.Hours)
 
+```
+
+
+The scatter plot below is an attempt to see if
+there is a relationship between both variables. The plot applies a log 
+transformation to each of these variables in an attempt to better represent the
+results and to deal with outliers.
+
+```{r vehicle_hours_miles}
 ## Scatter Plot: Vehicle Hours X Vehicle Miles
 p1 <- ggplot(ntd_service_data, aes(x = log(Vehicle.Miles), 
                                    y = log(Vehicle.Hours)))
-p1 + geom_point(aes(color = Mode))
+p1 + geom_point(aes(color = Mode_Group))
 ```
 
-Each color in the graph corresponds to a different mode, and it appears that 
-the relationship is different for each mode. Some of them seem to have a 
+Each color in the graph corresponds to a different group of modes 
+(similar modes are grouped together), and it appears that 
+the relationship is different for each mode group. Some of them seem to have a 
 stronger relationship them others.
 
 Continuing the exploration of vehicle related variables, the multivariate plot
@@ -505,7 +557,7 @@ ntd_service_data$Vehicle.Revenue.Miles <- as.numeric(gsub("\\,","",
   as.character(ntd_service_data$Vehicle.Revenue.Miles)))
 
 qplot(Scheduled.Vehicle.Revenue.Miles, Vehicle.Revenue.Miles, 
-      data=ntd_service_data)
+      data=ntd_service_data, alpha=I(0.1))
 ```
 
 The scatter plot above shows that both variables are related, but as expected, 
@@ -523,7 +575,7 @@ is the most used transit mode in the US, followed by Heavy Rail.
 ## unlinked trips by mode
 ggplot(data=ntd_service_data, 
        aes(x=Mode_Name, y=Unlinked.Passenger.Trips
-           ,fill=factor(Mode_Name))) +
+           ,fill=factor(1))) +
   geom_bar(position="dodge", stat="identity") +
   coord_flip() +
   theme(legend.position = "none") +
@@ -541,7 +593,7 @@ compared to the other cities.
 ```{r final_city_plot}
 
 ## Top 10 Cities by unlinked trips
-qplot(factor(City), data=ntd_data_by_city[1:10,], geom="bar", fill=factor(City),
+qplot(factor(City), data=ntd_data_by_city[1:10,], geom="bar",
       weight = trips, main="Top 10 Cities by Unlinked Trips", xlab="City", 
       ylab="Unlinked Trips") + 
   theme(legend.position = "none") + 
@@ -553,23 +605,27 @@ qplot(factor(City), data=ntd_data_by_city[1:10,], geom="bar", fill=factor(City),
 
 ```
 
-The scatter plot below compares Schedules and Actual Revenue Miles. Scheduled 
+The scatter plot below compares Schedules, Actual Vehicle Revenue Miles 
+and the Average Trip Length. Scheduled 
 Revenue Miles correspond to the amount of miles transit vehicles run as planned 
 on the timetables, while Actual Revenue Miles correspond to the miles that the 
-transit vehicles actually ran. A logarithm transformation was applied for both
+transit vehicles actually ran. A logarithm transformation was applied for all
 variables in an attempt to better represent the data. The graph shows that the 
-variables are strongly related 
-and for most transit operators both variables have similar values.
+vehicle miles variables are strongly related 
+and for most transit operators both variables have similar values. However, the
+graph indicates that the average trip length is not dependent to the vehicle 
+revenue miles variables.
 
 ```{r final_schedule_reality}
 ## Scatter Plot: Scheduled.Vehicle.Revenue.Miles X Vehicle.Revenue.Miles
 qplot(Scheduled.Vehicle.Revenue.Miles, Vehicle.Revenue.Miles, 
       data=ntd_service_data, 
-      main="Scheduled Vs. Actual Vehicle Miles", 
+      main="Scheduled Vs. Actual Vehicle Miles Vs. Passenger Trip Length", 
       xlab="Logarithm of Scheduled Vehicle Revenue Miles", 
-      ylab="Logarithm of Actual Vehicle Revenue Miles") + 
+      ylab="Logarithm of Actual Vehicle Revenue Miles", alpha=I(0.1)) + 
   scale_x_log10() +
-  scale_y_log10()
+  scale_y_log10() + geom_point(aes(color = log(Average.Passenger.Trip.Length..mi.))) +
+  labs(colour = "Logarithm of Avg. Passenger Trip Length (Miles)")
 ```
 
 ## Reflection
