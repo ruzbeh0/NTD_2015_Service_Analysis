@@ -1,7 +1,7 @@
 ---
 title: "National Transit Database - 2015 Service Analysis"
 author: "Ruzbeh Shokranian"
-date: "February 6, 2017"
+date: "February 7, 2017"
 output: html_document
 ---
 
@@ -96,9 +96,14 @@ ntd_service_data$Unlinked.Passenger.Trips <-
                   as.character(ntd_service_data$Unlinked.Passenger.Trips)))
 
 ## Top unlinked trips by mode
-ggplot(data=ntd_service_data, 
-       aes(x=Mode_Name, y=Unlinked.Passenger.Trips
-           ,fill=factor(Mode_Name))) +
+ntd_unlinked_trips_by_mode <- ntd_service_data %>% 
+group_by(Mode_Name) %>%
+summarise(trips = sum(Unlinked.Passenger.Trips)) %>%
+ungroup() %>%
+arrange(desc(trips))
+
+ggplot(data=ntd_unlinked_trips_by_mode, 
+       aes(x=Mode_Name, y=trips)) +
   geom_bar(position="dodge", stat="identity") +
   coord_flip() +
   theme(legend.position = "none") +
@@ -329,7 +334,7 @@ ntd_service_data$Vehicle.Miles.Hours <-
   as.numeric(ntd_service_data$Vehicle.Miles/
   ntd_service_data$Vehicle.Hours)
 
-qplot(factor(Mode), data=ntd_service_data, geom="bar", fill=factor(Mode), 
+qplot(factor(Mode), data=ntd_service_data, geom="bar", 
       weight = Vehicle.Miles.Hours) +
   theme(legend.position = "none")
 ```
@@ -367,7 +372,7 @@ commuter_rail_by_agency <- commuter_rail_subset %>%
   arrange(desc(Trips))
 
 ggplot(data=commuter_rail_by_agency[1:10,], 
-       aes(x=Name, y=Trips,fill=factor(Name))) +
+       aes(x=Name, y=Trips)) +
   geom_bar(position="dodge", stat="identity") +
   coord_flip() +
   theme(legend.position = "none")
@@ -381,8 +386,8 @@ in respect to the mean. The graph below presents that:
 
 ## TOp 10 commuter rail agencies in the US in respect to the mean
 ggplot(data=commuter_rail_by_agency[1:10,], 
-       aes(x=Name, y=Trips/mean(commuter_rail_subset$Unlinked.Passenger.Trips)
-           ,fill=factor(Name))) +
+       aes(x=Name, 
+           y=Trips/mean(commuter_rail_subset$Unlinked.Passenger.Trips))) +
   geom_bar(position="dodge", stat="identity") +
   coord_flip() +
   theme(legend.position = "none")
@@ -423,8 +428,7 @@ revenue_commuter_rail_by_agency <- commuter_rail_subset %>%
   arrange(desc(Revenue_Mile))
 
 ggplot(data=revenue_commuter_rail_by_agency[1:10,], 
-       aes(x=Name, y=Revenue_Mile
-           ,fill=factor(Name))) +
+       aes(x=Name, y=Revenue_Mile)) +
   geom_bar(position="dodge", stat="identity") +
   coord_flip() +
   theme(legend.position = "none")
@@ -465,8 +469,7 @@ bus_by_agency <- bus_subset %>%
   arrange(desc(trips))
 
 ggplot(data=bus_by_agency[1:10,], 
-       aes(x=Name, y=trips
-           ,fill=factor(Name))) +
+       aes(x=Name, y=trips)) +
   geom_bar(position="dodge", stat="identity") +
   coord_flip() +
   theme(legend.position = "none")
@@ -480,8 +483,7 @@ histogram of agencies grouped by number of vehicles.
 
 ## Plotting top 10 agencies by the number of vehicles
 ggplot(data=bus_by_agency[1:10,], 
-       aes(x=Name, y=voms
-           ,fill=factor(Name))) +
+       aes(x=Name, y=voms)) +
   geom_bar(position="dodge", stat="identity") +
   coord_flip() +
   theme(legend.position = "none")
@@ -517,8 +519,7 @@ The bar plot below shows how average bus speed varies across agencies:
 
 ## Plotting top 10 agencies by the speed
 ggplot(data=bus_by_agency[1:10,], 
-       aes(x=Name, y=speed
-           ,fill=factor(Name))) +
+       aes(x=Name, y=speed)) +
   geom_bar(position="dodge", stat="identity") +
   coord_flip() +
   theme(legend.position = "none")
@@ -573,8 +574,8 @@ is the most used transit mode in the US, followed by Heavy Rail.
 
 ```{r final_mode_plot}
 ## unlinked trips by mode
-ggplot(data=ntd_service_data, 
-       aes(x=Mode_Name, y=Unlinked.Passenger.Trips
+ggplot(data=ntd_unlinked_trips_by_mode, 
+       aes(x=Mode_Name, y=trips
            ,fill=factor(1))) +
   geom_bar(position="dodge", stat="identity") +
   coord_flip() +
@@ -582,7 +583,7 @@ ggplot(data=ntd_service_data,
   labs(x = "Mode", y = "Unlinked Trips", 
        title = "Annual Unlinked Trips by Mode") +
   scale_y_continuous(
-    name="Unlinked Trips",
+    name="Annual Unlinked Trips",
     labels = function(n) {format(n, big.mark=",", scientific = FALSE)})
 ```
 
@@ -594,13 +595,13 @@ compared to the other cities.
 
 ## Top 10 Cities by unlinked trips
 qplot(factor(City), data=ntd_data_by_city[1:10,], geom="bar",
-      weight = trips, main="Top 10 Cities by Unlinked Trips", xlab="City", 
-      ylab="Unlinked Trips") + 
+      weight = trips, main="Top 10 Cities by Annual Unlinked Trips", xlab="City", 
+      ylab="Annual Unlinked Trips") + 
   theme(legend.position = "none") + 
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
   scale_fill_discrete(guide = guide_legend(title = "City")) +
   scale_y_continuous(
-    name="Unlinked Trips",labels = 
+    name="Annual Unlinked Trips",labels = 
       function(n) {format(n, big.mark=",", scientific = FALSE)})
 
 ```
@@ -615,6 +616,10 @@ vehicle miles variables are strongly related
 and for most transit operators both variables have similar values. However, the
 graph indicates that the average trip length is not dependent to the vehicle 
 revenue miles variables.
+
+Note that for some transit agencies the data is 
+incomplete, either missing one or both of the variables. Because of this there 
+are several points on the y axis where x is equal to zero. 
 
 ```{r final_schedule_reality}
 ## Scatter Plot: Scheduled.Vehicle.Revenue.Miles X Vehicle.Revenue.Miles
